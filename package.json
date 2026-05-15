@@ -1,11 +1,17 @@
 {
   "name": "depthfield",
-  "version": "1.0.2",
+  "version": "1.2.2",
   "description": "CSS z-index based depth of field library. Control blur, scale and opacity using camera parameters: focal length, aperture and sensor size.",
-  "main": "depthfield.js",
+  "main": "depthfield.min.js",
+  "module": "depthfield.esm.js",
+  "exports": {
+    "import": "./depthfield.esm.js",
+    "default": "./depthfield.min.js"
+  },
   "files": [
     "depthfield.js",
     "depthfield.min.js",
+    "depthfield.esm.js",
     "README.md"
   ],
   "keywords": [
@@ -26,9 +32,12 @@
     "url": ""
   },
   "scripts": {
-    "build": "terser depthfield.js -o depthfield.min.js --compress --mangle"
+    "build": "terser depthfield.js --module --ecma 2020 --compress --mangle -o depthfield.esm.js && esbuild depthfield.js --format=iife --bundle --minify --outfile=depthfield.min.js",
+    "build:obfuscate": "npm run build && javascript-obfuscator depthfield.min.js --output depthfield.min.js --compact true --string-array true --string-array-rotate true --string-array-shuffle true --identifier-names-generator hexadecimal"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
+    "javascript-obfuscator": "^5.4.2",
     "terser": "^5.0.0"
   }
 }

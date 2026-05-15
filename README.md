@@ -162,14 +162,35 @@ const scene = DepthField.scene('main', '#scene', {
   aperture   : 1.8,
   watch      : true,  // GSAP連携を有効化
 }).apply();
-
-// GSAPでdata-zをアニメーションするだけで奥行きが自動更新される
-gsap.to('.card', {
-  attr    : { 'data-z': 3 },
-  duration: 1,
-  ease    : 'power2.inOut',
-});
 ```
+
+### ⚠️ 重要：入れ子構造が必須
+
+CSSの仕様上、`filter`（DepthFieldのblur）と `transform`（GSAPのx/y移動）を**同じ要素に同時に適用すると合成レイヤーが衝突**し、アニメーションが正しく動作しません。
+
+**「動かす要素」と「ぼかす要素」は必ず分けてください。**
+
+```html
+<!-- ✅ 正しい構造：外側で動かし、内側でぼかす -->
+<div class="mover">                  <!-- GSAPでx/y/scale等を制御（data-zなし） -->
+  <div class="depth" data-z="2">     <!-- DepthFieldがblurを管理（移動させない） -->
+    コンテンツ
+  </div>
+</div>
+```
+
+```javascript
+// 外側をGSAPで動かす（filterなし → イージング正確）
+gsap.to('.mover', { x: 200, duration: 1, ease: 'power2.out' });
+
+// 内側のdata-zでボケを制御（transformなし → filterと干渉しない）
+gsap.to('.depth', { attr: { 'data-z': 3 }, duration: 1 });
+```
+
+| 役割 | 要素 | ポイント |
+|------|------|----------|
+| 移動・拡縮・回転 | 外側（`data-z`なし） | filterがないのでGSAPのtransformが正確 |
+| ぼかし（奥行き） | 内側（`data-z`あり） | 位置を動かさないのでfilterと干渉しない |
 
 ### watch の切り替え
 
@@ -201,12 +222,23 @@ DepthField.resetAll();
 
 DepthField.js は [MotionLab](https://idstock.net/) と組み合わせることで、GSAPアニメーションに被写界深度を自動付加できます。
 
-```javascript
-// MotionLabでz-indexを動かすだけで、カメラのような演出が自動でつく
-gsap.timeline()
-  .to('.hero',  { attr: { 'data-z': 0 }, duration: 1 })
-  .to('.cards', { attr: { 'data-z': 2 }, duration: 0.8, stagger: 0.1 });
+上記の入れ子構造を使い、**外側の要素をMotionLabで動かし、内側のdata-z要素で奥行きを制御**します。
+
+```html
+<!-- 入れ子構造で役割を分ける -->
+<div class="mover">               <!-- MotionLabでx/y/scale等を設定 -->
+  <div data-z="0" class="depth">  <!-- MotionLabでz（奥行き）を設定 -->
+    コンテンツ
+  </div>
+</div>
 ```
+
+```javascript
+// DepthFieldの初期化
+DepthField.scene('main', '#scene', { watch: true }).apply();
+```
+
+MotionLab上では `.mover` にx/y/scale等を、`.depth` にz（奥行き）を設定します。
 
 ---
 
