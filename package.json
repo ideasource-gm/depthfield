@@ -1,6 +1,6 @@
 {
   "name": "depthfield",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "CSS z-index based depth of field library. Control blur, scale and opacity using camera parameters: focal length, aperture and sensor size.",
   "main": "depthfield.min.js",
   "module": "depthfield.esm.js",

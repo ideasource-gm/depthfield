@@ -110,37 +110,64 @@ const DEFAULTS = {
 
 const ALLOWED_KEYS = ['sensor', 'focalLength', 'aperture', 'focusPoint', 'depthScale', 'maxBlur', 'transition', 'watch'];
 
+// 数値フィールドの有効範囲（セキュリティ：NaN/Infinityを排除）
+const NUMERIC_RANGES = {
+  focalLength: [1, 2000],
+  aperture   : [0.7, 64],
+  focusPoint : [-10000, 10000],
+  depthScale : [0, 10],
+  maxBlur    : [0, 200],
+};
+
 const sanitizeOptions = (options) => {
   if (!options || typeof options !== 'object') return {};
-  return Object.fromEntries(
+  const result = Object.fromEntries(
     ALLOWED_KEYS
       .filter(key => Object.prototype.hasOwnProperty.call(options, key))
       .map(key => [key, options[key]])
   );
+  // 数値フィールドの型・範囲チェック
+  for (const [key, [min, max]] of Object.entries(NUMERIC_RANGES)) {
+    if (key in result) {
+      const v = result[key];
+      if (typeof v !== 'number' || !isFinite(v) || v < min || v > max) {
+        delete result[key];
+      }
+    }
+  }
+  // transition は安全な文字列のみ許可
+  if ('transition' in result) {
+    if (typeof result.transition !== 'string' || !/^[\w\s.,%-]+$/.test(result.transition)) {
+      delete result.transition;
+    }
+  }
+  return result;
 };
 
 // センサープリセットをcfgに反映（手動指定がない場合のみ）
+// _perspective と _blurScalar はhotpathで毎回計算しないようにキャッシュ
 const applySensorPreset = (cfg) => {
   const preset = SENSORS[cfg.sensor];
   if (!preset) return cfg;
   cfg._blurMultiplier = preset.blurMultiplier;
   if (cfg.depthScale === DEFAULTS.depthScale) cfg.depthScale = preset.depthScale;
   if (cfg.maxBlur    === DEFAULTS.maxBlur)    cfg.maxBlur    = preset.maxBlur;
+  // キャッシュ：focus変更時以外は再計算不要な定数
+  cfg._perspective = cfg.focalLength / 50;
+  cfg._blurScalar  = (cfg.focalLength * cfg._blurMultiplier) / (cfg.aperture * 10);
   return cfg;
 };
 
 // ── 計算 ─────────────────────────────────────────────────────
 const calcBlur = (zIndex, cfg) => {
-  const distance   = Math.abs(zIndex - cfg.focusPoint);
-  const multiplier = cfg._blurMultiplier ?? 1.0;
-  const blur = (distance * cfg.focalLength * multiplier) / (cfg.aperture * 10);
+  const distance = Math.abs(zIndex - cfg.focusPoint);
+  const blur = distance * (cfg._blurScalar ?? (cfg.focalLength * (cfg._blurMultiplier ?? 1.0)) / (cfg.aperture * 10));
   return Math.min(blur, cfg.maxBlur);
 };
 
 const calcScale = (zIndex, cfg) => {
-  const distance    = (zIndex - cfg.focusPoint) * cfg.depthScale;
-  const perspective = cfg.focalLength / 50;
-  return Math.max(0.3, 1 + distance / perspective);
+  const distance = (zIndex - cfg.focusPoint) * cfg.depthScale;
+  return Math.max(0.3, 1 + distance / (cfg._perspective ?? cfg.focalLength / 50));
 };
 
 const calcOpacity = (zIndex, cfg) => {
@@ -152,19 +179,33 @@ const calcOpacity = (zIndex, cfg) => {
 // .df-blurredクラスを持つ要素にのみfilterを適用。
 // blur=0の要素にfilterをかけると stacking context が生まれGSAPと干渉するため、
 // ボケが必要な要素だけクラスを付けてfilterを適用する。
+let _gsapStyleInjected = false; // DOM queryを毎回しないようにフラグで管理
 const ensureGsapStyle = () => {
-  if (document.getElementById('_df_gsap_style')) return;
+  if (_gsapStyleInjected) return;
   const s = document.createElement('style');
   s.id = '_df_gsap_style';
   s.textContent = '.df-blurred{filter:blur(var(--df-blur,4px));will-change:filter,transform}';
   (document.head ?? document.documentElement).appendChild(s);
+  _gsapStyleInjected = true;
+};
+
+// ── 要素のスタイルをリセット（GSAP有無で分岐） ──────────────────
+// reset() と _startWatching() で同じ処理が必要なため共通化
+const resetElement = (el, hasGsap) => {
+  if (hasGsap) {
+    el.classList.remove('df-blurred');
+    el.style.removeProperty('--df-blur');
+  } else {
+    el.style.filter = el.style.transition = el.style.zIndex =
+      el.style.transform = el.style.opacity = '';
+  }
 };
 
 // ── 要素への適用 ──────────────────────────────────────────────
-const applyToElement = (el, zIndex, cfg) => {
+const applyToElement = (el, zIndex, cfg, hasGsap) => {
   const blur = calcBlur(zIndex, cfg);
 
-  if (typeof window !== 'undefined' && window.gsap) {
+  if (hasGsap) {
     // GSAPがある場合：ボケが必要な時だけ .df-blurred クラスを付与
     // filterをinline styleで設定するとGSAPのstyle管理と干渉するため使用しない
     ensureGsapStyle();
@@ -179,29 +220,22 @@ const applyToElement = (el, zIndex, cfg) => {
     return;
   }
 
-  // GSAPなし：従来通りinline styleで制御
   el.style.position  = el.style.position || 'relative';
   el.style.filter    = blur > 0.1 ? `blur(${blur.toFixed(2)}px)` : '';
   const scale        = calcScale(zIndex, cfg);
   const opacity      = calcOpacity(zIndex, cfg);
-  el.style.zIndex    = Math.round(zIndex + 100);
+  el.style.zIndex    = Math.clamp ? Math.clamp(Math.round(zIndex + 100), -9999, 9999) : Math.min(Math.max(Math.round(zIndex + 100), -9999), 9999);
   el.style.transform = `scale(${scale.toFixed(4)})`;
   el.style.opacity   = opacity.toFixed(3);
   el.style.transition = `filter ${cfg.transition}, transform ${cfg.transition}, opacity ${cfg.transition}`;
 };
 
-// ── イージング ────────────────────────────────────────────────
-const easeInOut = (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-
 // ── Sceneクラス ───────────────────────────────────────────────
-/**
- * 1つのシーンを管理するクラス
- * シーンはページ内の特定エリアに独立したDepthFieldを適用する単位
- */
 class Scene {
   constructor(containerOrSelector, options) {
     this._cfg      = applySensorPreset({ ...DEFAULTS, ...sanitizeOptions(options) });
     this._observer = null;
+    this._rafId    = null; // focus()のrAFループを追跡・キャンセル用
     this._container = typeof containerOrSelector === 'string'
       ? document.querySelector(containerOrSelector)
       : containerOrSelector;
@@ -220,23 +254,24 @@ class Scene {
   apply() {
     if (!this._container) return this;
     const { _cfg: cfg, _container: container } = this;
+    const hasGsap = typeof window !== 'undefined' && !!window.gsap;
 
-    // グループ（data-df-group）をまとめて処理
-    const processedGroups = new Set();
+    // グループ（data-df-group）を1回のDOM queryでMapに変換してO(n)で処理
+    const groupMap = new Map();
     container.querySelectorAll('[data-df-group]').forEach(el => {
-      const groupName = el.dataset.dfGroup;
-      if (processedGroups.has(groupName)) return;
-      processedGroups.add(groupName);
-
-      const zIndex    = parseFloat(el.dataset.z) || 0;
-      const groupEls  = [...container.querySelectorAll('[data-df-group]')]
-        .filter(e => e.dataset.dfGroup === groupName);
-      groupEls.forEach(groupEl => applyToElement(groupEl, zIndex, cfg));
+      const name = el.dataset.dfGroup;
+      if (!groupMap.has(name)) {
+        groupMap.set(name, { zIndex: parseFloat(el.dataset.z) || 0, els: [] });
+      }
+      groupMap.get(name).els.push(el);
     });
+    groupMap.forEach(({ zIndex, els }) =>
+      els.forEach(el => applyToElement(el, zIndex, cfg, hasGsap))
+    );
 
     // 通常要素（data-z のみ）を処理
     container.querySelectorAll('[data-z]:not([data-df-group])').forEach(el => {
-      applyToElement(el, parseFloat(el.dataset.z) || 0, cfg);
+      applyToElement(el, parseFloat(el.dataset.z) || 0, cfg, hasGsap);
     });
 
     return this;
@@ -249,16 +284,19 @@ class Scene {
    */
   focus(zIndex, duration) {
     if (duration) {
+      // 進行中のrAFループをキャンセルしてから新しいアニメーションを開始
+      if (this._rafId) cancelAnimationFrame(this._rafId);
       const startFocus = this._cfg.focusPoint;
       const startTime  = performance.now();
+      const easeInOut  = (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
       const tick = (now) => {
         const elapsed  = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         this._cfg.focusPoint = startFocus + (zIndex - startFocus) * easeInOut(progress);
         this.apply();
-        if (progress < 1) requestAnimationFrame(tick);
+        this._rafId = progress < 1 ? requestAnimationFrame(tick) : null;
       };
-      requestAnimationFrame(tick);
+      this._rafId = requestAnimationFrame(tick);
     } else {
       this._cfg.focusPoint = zIndex;
       this.apply();
@@ -272,18 +310,10 @@ class Scene {
   reset() {
     if (!this._container) return this;
     this._stopWatching();
-    this._container.querySelectorAll('[data-z], [data-df-group]').forEach(el => {
-      if (typeof window !== 'undefined' && window.gsap) {
-        el.classList.remove('df-blurred');
-        el.style.removeProperty('--df-blur');
-      } else {
-        el.style.filter     = '';
-        el.style.transition = '';
-        el.style.zIndex     = '';
-        el.style.transform  = '';
-        el.style.opacity    = '';
-      }
-    });
+    const hasGsap = typeof window !== 'undefined' && !!window.gsap;
+    this._container.querySelectorAll('[data-z], [data-df-group]').forEach(el =>
+      resetElement(el, hasGsap)
+    );
     return this;
   }
 
@@ -294,24 +324,13 @@ class Scene {
   _startWatching() {
     if (this._observer || !this._container) return;
     this._observer = new MutationObserver((mutations) => {
+      const hasGsap = typeof window !== 'undefined' && !!window.gsap;
       let needsUpdate = false;
       mutations.forEach(m => {
         if (m.attributeName !== 'data-z') return;
         needsUpdate = true;
         // data-z が削除された要素は apply() に届かないので直接リセット
-        if (!m.target.hasAttribute('data-z')) {
-          const el = m.target;
-          if (typeof window !== 'undefined' && window.gsap) {
-            el.classList.remove('df-blurred');
-            el.style.removeProperty('--df-blur');
-          } else {
-            el.style.filter     = '';
-            el.style.transition = '';
-            el.style.zIndex     = '';
-            el.style.transform  = '';
-            el.style.opacity    = '';
-          }
-        }
+        if (!m.target.hasAttribute('data-z')) resetElement(m.target, hasGsap);
       });
       if (needsUpdate) this.apply();
     });
@@ -339,6 +358,8 @@ class Scene {
     const safe = sanitizeOptions(options);
     Object.assign(this._cfg, safe);
     if (safe.sensor) applySensorPreset(this._cfg);
+    // focalLength/aperture変更時はキャッシュを再計算
+    if (safe.focalLength || safe.aperture || safe.sensor) applySensorPreset(this._cfg);
     if (safe.watch === true  && !this._observer) this._startWatching();
     if (safe.watch === false &&  this._observer) this._stopWatching();
     this.apply();
@@ -346,16 +367,17 @@ class Scene {
   }
 
   /**
-   * 現在の設定を取得
+   * 現在の設定を取得（内部キャッシュ値を除く）
    */
   getConfig() {
-    return { ...this._cfg };
+    const { _blurMultiplier, _perspective, _blurScalar, ...publicCfg } = this._cfg;
+    return publicCfg;
   }
 }
 
 // ── 公開API ──────────────────────────────────────────────────
 const DepthField = {
-  _scenes : {},
+  _scenes : Object.create(null), // __proto__等の予約語による衝突を防ぐ
   SENSORS,
 
   /** シンプルに全ページへ適用（後方互換） */
@@ -372,10 +394,25 @@ const DepthField = {
    * @param {object} options             設定
    */
   scene(name, container, options) {
+    if (typeof name !== 'string' || name === '__proto__' || name === 'constructor') {
+      throw new TypeError('[DepthField] 無効なシーン名です');
+    }
     if (!this._scenes[name]) {
       this._scenes[name] = new Scene(container, options);
     }
     return this._scenes[name];
+  },
+
+  /**
+   * 名前付きシーンを破棄
+   * @param {string} name シーン名
+   */
+  destroyScene(name) {
+    if (this._scenes[name]) {
+      this._scenes[name].reset();
+      delete this._scenes[name];
+    }
+    return this;
   },
 
   /** 全シーンを一括更新 */
