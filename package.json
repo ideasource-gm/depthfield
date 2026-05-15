@@ -29,7 +29,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/ideasource-gm/depthfield"
   },
   "scripts": {
     "build": "terser depthfield.js --module --ecma 2020 --compress --mangle -o depthfield.esm.js && esbuild depthfield.js --format=iife --bundle --minify --outfile=depthfield.min.js",
