@@ -1,6 +1,6 @@
 {
   "name": "depthfield",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "CSS z-index based depth of field library. Control blur, scale and opacity using camera parameters: focal length, aperture and sensor size.",
   "main": "depthfield.min.js",
   "module": "depthfield.esm.js",
@@ -29,7 +29,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ideasource-gm/depthfield"
+    "url": "git+https://github.com/ideasource-gm/depthfield.git"
   },
   "scripts": {
     "build": "terser depthfield.js --module --ecma 2020 --compress --mangle -o depthfield.esm.js && esbuild depthfield.js --format=iife --bundle --minify --outfile=depthfield.min.js",
