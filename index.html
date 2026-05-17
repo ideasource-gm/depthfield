@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DepthField.js — CSS Depth of Field Library</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" rel="stylesheet">
+  <style>
+    .material-symbols-outlined {
+      font-size: 28px;
+      color: var(--accent);
+      display: block;
+      margin-bottom: 14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #4a9eff;
+      --accent2: #a855f7;
+      --bg: #080c10;
+      --bg2: #0d1117;
+      --bg3: #111820;
+      --border: rgba(255,255,255,0.07);
+      --text: #fff;
+      --text2: #888;
+      --text3: #444;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── ナビ ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 56px;
+      background: rgba(8,12,16,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-size: 15px; font-weight: 700; color: #fff;
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links {
+      display: flex; align-items: center; gap: 28px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text2); text-decoration: none; font-size: 13px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .nav-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent); color: #fff; text-decoration: none;
+      padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .nav-btn:hover { opacity: 0.85; }
+
+    /* ── セクション共通 ── */
+    section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 11px; letter-spacing: 0.25em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: clamp(28px, 4vw, 48px); font-weight: 800;
+      letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px;
+    }
+    .section-desc {
+      font-size: 16px; color: var(--text2); line-height: 1.8;
+      max-width: 560px;
+    }
+    .divider {
+      width: 100%; height: 1px; background: var(--border);
+      max-width: 1100px; margin: 0 auto;
+    }
+
+    /* ══════════════════════════════════════
+       1. ヒーロー（スクロールデモ）
+    ══════════════════════════════════════ */
+    .hero-wrap {
+      padding-top: 56px; /* navの高さ分 */
+    }
+
+    .hero-static {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 80px 40px 60px;
+      gap: 16px;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(74,158,255,0.1); border: 1px solid rgba(74,158,255,0.2);
+      border-radius: 100px; padding: 6px 16px; font-size: 12px; color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .hero-h1 {
+      font-size: clamp(48px, 8vw, 96px); font-weight: 700;
+      letter-spacing: -0.03em; line-height: 1.0;
+      background: linear-gradient(135deg, #fff 20%, #555 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 20px); color: var(--text2);
+      max-width: 520px; line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex; align-items: center; gap: 12px; margin-top: 12px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #fff; text-decoration: none;
+      padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      color: var(--text2); text-decoration: none;
+      padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .hero-version {
+      font-size: 11px; color: var(--text3); margin-top: 4px;
+    }
+    .scroll-hint {
+      margin-top: 48px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: #fff; font-size: 11px; letter-spacing: 0.15em;
+      animation: fadeUpDown 2s ease-in-out infinite;
+    }
+    .scroll-hint svg { opacity: 0.6; }
+    @keyframes fadeUpDown {
+      0%, 100% { transform: translateY(0); opacity: 0.7; }
+      50% { transform: translateY(8px); opacity: 1; }
+    }
+
+    /* スクロールデモ */
+    .scroll-scene { height: 400vh; position: relative; }
+    .sticky-wrap {
+      position: sticky; top: 56px; height: calc(100vh - 56px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .progress-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #111; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+    }
+    .scene-label {
+      position: absolute; top: 28px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; letter-spacing: 0.2em; color: #fff;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    #df-stage {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; width: 100%; padding: 40px 20px;
+    }
+    .scroll-card {
+      position: relative; flex-shrink: 0;
+      width: clamp(110px, 15vw, 190px);
+      border-radius: 20px;
+      padding: clamp(14px, 2vw, 26px) clamp(10px, 1.5vw, 18px);
+      text-align: center; transform-origin: center center;
+      margin: 0 clamp(-18px, -2.5vw, -10px);
+      background: var(--bg2); border: 1px solid rgba(255,255,255,0.06);
+      transition: border-color 0.3s;
+    }
+    .scroll-card.is-focused { border-color: rgba(255,255,255,0.2) !important; }
+    .scroll-card:nth-child(1) { border-color: rgba(168,85,247,0.15); }
+    .scroll-card:nth-child(2) { border-color: rgba(74,158,255,0.15); }
+    .scroll-card:nth-child(3) { border-color: rgba(34,211,153,0.15); }
+    .scroll-card:nth-child(4) { border-color: rgba(251,146,60,0.15); }
+    .scroll-card:nth-child(5) { border-color: rgba(239,68,68,0.15); }
+    .scroll-card-icon { font-size: clamp(26px, 3.5vw, 44px); margin-bottom: 10px; display: block; }
+    .scroll-card-label { font-size: clamp(9px, 1.1vw, 12px); color: var(--text2); display: block; margin-bottom: 3px; }
+    .scroll-card-z { font-size: clamp(9px, 1.1vw, 12px); font-weight: bold; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .focus-indicator {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 100px; padding: 7px 18px; font-size: 12px; color: var(--text3);
+      backdrop-filter: blur(10px); white-space: nowrap;
+    }
+    .focus-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0; }
+    .focus-value { color: #fff; font-weight: bold; font-variant-numeric: tabular-nums; }
+
+    /* ══════════════════════════════════════
+       2. 特徴
+    ══════════════════════════════════════ */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px; margin-top: 48px;
+    }
+    .feature-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+    }
+    .feature-icon { font-size: 28px; margin-bottom: 14px; display: block; }
+    .feature-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: 13px; color: var(--text2); line-height: 1.7; }
+
+    /* ══════════════════════════════════════
+       3. インタラクティブデモ
+    ══════════════════════════════════════ */
+    .demo-section { padding: 80px 40px; max-width: 1100px; margin: 0 auto; }
+
+    .df-instance {
+      border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; margin-bottom: 20px;
+    }
+    .df-ctrl {
+      background: #0d1117; padding: 12px 20px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+      border-bottom: 1px solid #1e1e1e;
+    }
+    .df-instance-name {
+      font-size: 12px; color: #666; white-space: nowrap;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .df-instance-name span {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 2px; min-width: 110px; }
+    .ctrl-group label { font-size: 10px; color: #555; }
+    .ctrl-group input[type="range"] {
+      -webkit-appearance: none; height: 3px; border-radius: 2px;
+      background: #2a2a2a; outline: none; cursor: pointer;
+    }
+    .ctrl-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 13px; height: 13px;
+      border-radius: 50%; border: 2px solid #fff;
+    }
+    .ctrl-val { font-size: 11px; color: #fff; font-weight: bold; }
+    .sensor-select {
+      background: #1a1a1a; border: 1px solid #333; color: #aaa;
+      border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none;
+    }
+    .sensor-select:focus { border-color: #555; }
+    .sensor-info { font-size: 10px; color: #555; white-space: nowrap; display: flex; flex-direction: column; gap: 2px; line-height: 1.4; }
+    .sensor-info b { color: #888; }
+    .df-scene-area {
+      padding: 36px 30px;
+      display: flex; align-items: center; justify-content: center; gap: 0;
+      min-height: 220px; position: relative; background: #0a0d10;
+    }
+    .card {
+      position: relative; width: 150px; flex-shrink: 0;
+      border-radius: 14px; padding: 20px 14px;
+      text-align: center; cursor: pointer;
+      transform-origin: center center; margin: 0 -8px;
+      border: 1.5px solid transparent;
+    }
+    .card:hover { border-color: #333 !important; }
+    .card.focused { border-color: #34c759 !important; }
+    .card .emoji { font-size: 32px; margin-bottom: 8px; display: block; }
+    .card h3 { font-size: 12px; margin-bottom: 4px; }
+    .card p  { font-size: 10px; color: #666; line-height: 1.5; }
+    .z-badge {
+      position: absolute; top: 6px; right: 6px;
+      font-size: 9px; color: #444; background: rgba(0,0,0,0.5);
+      padding: 1px 5px; border-radius: 3px;
+    }
+    .photo-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .photo-card {
+      position: relative; cursor: pointer;
+      border-radius: 10px; overflow: hidden;
+      border: 2px solid transparent; transform-origin: center center;
+    }
+    .photo-card.focused { border-color: #34c759; }
+    .photo-bg {
+      width: 120px; height: 88px;
+      display: flex; align-items: center; justify-content: center; font-size: 32px;
+    }
+    .photo-label { font-size: 11px; color: #888; transform-origin: center center; }
+    .layout-scene { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 540px; }
+    .layout-hero {
+      position: relative; background: #161625;
+      border-radius: 12px; padding: 24px;
+      text-align: center; cursor: pointer;
+      transform-origin: center center; border: 1.5px solid transparent;
+    }
+    .layout-hero.focused { border-color: #34c759 !important; }
+    .layout-hero h2 { font-size: 18px; margin-bottom: 6px; }
+    .layout-hero p  { color: #666; font-size: 12px; }
+    .layout-row { display: flex; gap: 10px; }
+    .layout-card {
+      position: relative; flex: 1; background: #141414;
+      border-radius: 10px; padding: 14px; cursor: pointer;
+      transform-origin: center center; border: 1.5px solid transparent;
+    }
+    .layout-card.focused { border-color: #34c759 !important; }
+    .layout-card h3 { font-size: 12px; margin-bottom: 4px; }
+    .layout-card p  { font-size: 11px; color: #555; }
+
+    /* ══════════════════════════════════════
+       4. インストール
+    ══════════════════════════════════════ */
+    .install-tabs {
+      display: flex; gap: 4px; margin-bottom: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: none; border: none; color: var(--text3);
+      padding: 10px 18px; font-size: 13px; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { color: #fff; border-bottom-color: var(--accent); }
+    .tab-btn:hover { color: var(--text2); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .install-box {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden; margin-top: 32px;
+    }
+    .code-block {
+      background: var(--bg2); padding: 24px 28px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px; line-height: 2; color: #cdd9e5;
+      overflow-x: auto;
+    }
+    .code-block .c-comment { color: #545d68; }
+    .code-block .c-key     { color: #79c0ff; }
+    .code-block .c-str     { color: #a5d6ff; }
+    .code-block .c-num     { color: #f78166; }
+    .code-block .c-bool    { color: #ff7b72; }
+    .code-block .c-tag     { color: #7ee787; }
+    .code-block .c-attr    { color: #e3b341; }
+
+    /* ══════════════════════════════════════
+       5. API リファレンス
+    ══════════════════════════════════════ */
+    .api-table {
+      width: 100%; border-collapse: collapse; margin-top: 32px;
+      font-size: 13px;
+    }
+    .api-table th {
+      text-align: left; padding: 10px 16px;
+      color: var(--text3); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .api-table td {
+      padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+    }
+    .api-table tr:last-child td { border-bottom: none; }
+    .api-table code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px; color: var(--accent);
+      background: rgba(74,158,255,0.08); padding: 2px 6px; border-radius: 4px;
+    }
+    .api-table .type { color: #a855f7; font-size: 11px; }
+    .api-table .desc { color: var(--text2); line-height: 1.6; }
+
+    /* ══════════════════════════════════════
+       6. GitHub / npm
+    ══════════════════════════════════════ */
+    .link-cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px; margin-top: 40px;
+    }
+    .link-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      text-decoration: none; color: inherit;
+      display: flex; flex-direction: column; gap: 10px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .link-card:hover { border-color: rgba(255,255,255,0.15); background: var(--bg3); }
+    .link-card-icon { font-size: 32px; }
+    .link-card-title { font-size: 16px; font-weight: 700; }
+    .link-card-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    .link-card-url { font-size: 11px; color: var(--accent); margin-top: auto; font-family: monospace; }
+
+    /* ══════════════════════════════════════
+       フッター
+    ══════════════════════════════════════ */
+    footer {
+      text-align: center; padding: 60px 40px;
+      color: var(--text3); font-size: 12px;
+      border-top: 1px solid var(--border);
+      line-height: 2;
+    }
+    footer a { color: var(--text2); text-decoration: none; }
+    footer a:hover { color: #fff; }
+
+    /* ══════════════════════════════════════
+       Integration セクション
+    ══════════════════════════════════════ */
+    .integration-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px; margin-top: 48px;
+    }
+    .integration-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .integration-card.highlight {
+      border-color: rgba(74,158,255,0.3);
+      background: linear-gradient(135deg, rgba(74,158,255,0.06) 0%, rgba(168,85,247,0.06) 100%);
+    }
+    .integration-card-header {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .integration-card-header .material-symbols-outlined {
+      font-size: 24px; margin-bottom: 0; color: var(--accent);
+    }
+    .integration-card-title { font-size: 17px; font-weight: 700; }
+    .integration-card-desc { font-size: 13px; color: var(--text2); line-height: 1.8; }
+    .integration-code {
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px; padding: 16px 18px;
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+      color: #cdd9e5; line-height: 1.8;
+    }
+    .integration-code .c-comment { color: #545d68; }
+    .integration-code .c-key     { color: #79c0ff; }
+    .integration-code .c-str     { color: #a5d6ff; }
+    .integration-code .c-num     { color: #f78166; }
+    .integration-code .c-bool    { color: #ff7b72; }
+    .btn-motionlab {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; text-decoration: none;
+      padding: 11px 22px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      transition: opacity 0.2s; align-self: flex-start; margin-top: 4px;
+    }
+    .btn-motionlab:hover { opacity: 0.85; }
+    .integration-flow {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; margin-top: 40px; flex-wrap: wrap;
+    }
+    .flow-step {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 20px; text-align: center;
+      min-width: 160px;
+    }
+    .flow-step-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+    .flow-step-name { font-size: 14px; font-weight: 700; }
+    .flow-step-name span { color: var(--accent); }
+    .flow-arrow { color: var(--text3); font-size: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- ナビ -->
+  <nav>
+    <a href="#" class="nav-logo">📷 Depth<span>Field</span>.js</a>
+    <ul class="nav-links">
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#integration">Integration</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#api">API</a></li>
+      <li><a href="#links">GitHub</a></li>
+    </ul>
+    <a href="https://www.npmjs.com/package/depthfield" target="_blank" class="nav-btn">
+      npm install
+    </a>
+  </nav>
+
+  <!-- ══════════════════════════
+       1. ヒーロー
+  ══════════════════════════ -->
+  <div class="hero-wrap">
+    <div class="hero-static">
+      <div class="hero-badge">✦ MIT Open Source · v1.3.0</div>
+      <h1 class="hero-h1">DepthField.js</h1>
+      <p class="hero-sub">CSS z-index ベースの被写界深度ライブラリ。焦点距離・絞り・センサーサイズというカメラパラメータでブラー・スケール・透明度を制御します。</p>
+      <div class="hero-actions">
+        <a href="#install" class="btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v13M5 9l7 7 7-7"/><path d="M3 20h18"/></svg>
+          Get Started
+        </a>
+        <a href="https://github.com/ideasource-gm/depthfield" target="_blank" class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <div class="scroll-hint">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        SCROLL TO SEE DEMO
+      </div>
+    </div>
+
+    <!-- スクロール連動デモ -->
+    <div class="scroll-scene">
+      <div class="sticky-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        <div class="scene-label">ScrollTrigger × DepthField — scroll to shift focus</div>
+        <div id="df-stage">
+          <div class="scroll-card" data-z="-20">
+            <span class="scroll-card-icon">🌌</span>
+            <span class="scroll-card-label">Far Background</span>
+            <span class="scroll-card-z">z = -20</span>
+          </div>
+          <div class="scroll-card" data-z="-10">
+            <span class="scroll-card-icon">🏔️</span>
+            <span class="scroll-card-label">Background</span>
+            <span class="scroll-card-z">z = -10</span>
+          </div>
+          <div class="scroll-card" data-z="0">
+            <span class="scroll-card-icon">📷</span>
+            <span class="scroll-card-label">Mid Ground</span>
+            <span class="scroll-card-z">z = 0</span>
+          </div>
+          <div class="scroll-card" data-z="10">
+            <span class="scroll-card-icon">🌿</span>
+            <span class="scroll-card-label">Foreground</span>
+            <span class="scroll-card-z">z = 10</span>
+          </div>
+          <div class="scroll-card" data-z="20">
+            <span class="scroll-card-icon">✨</span>
+            <span class="scroll-card-label">Far Foreground</span>
+            <span class="scroll-card-z">z = 20</span>
+          </div>
+        </div>
+        <div class="focus-indicator">
+          <div class="focus-dot"></div>
+          <span style="color:#555">Focus Point</span>
+          <span class="focus-value" id="focus-val">z = -20</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       2. 特徴
+  ══════════════════════════ -->
+  <div class="divider"></div>
+  <section id="features">
+    <p class="section-label">Features</p>
+    <h2 class="section-title">カメラで設計する<br>Web表現</h2>
+    <p class="section-desc">カメラの物理パラメータをそのままWebのUIに。センサーサイズ・焦点距離・絞りで、本物の被写界深度をCSSで再現します。</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="material-symbols-outlined">photo_camera</span>
+        <div class="feature-title">カメラパラメータで制御</div>
+        <p class="feature-desc">センサーサイズ（フルサイズ〜スマートフォン）・焦点距離・絞り値の組み合わせで、リアルな被写界深度を表現します。</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined">animation</span>
+        <div class="feature-title">rAF ベースの滑らかな描画</div>
+        <p class="feature-desc">フォーカス移動はrequestAnimationFrameとイージングで滑らかにアニメーション。パフォーマンスに配慮した設計です。</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined">track_changes</span>
+        <div class="feature-title">MutationObserver で自動追従</div>
+        <p class="feature-desc"><code>watch: true</code> でdata-z属性の変化を自動検知。GSAPやScrollTriggerとの連携がシンプルに実現できます。</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined">layers</span>
+        <div class="feature-title">複数インスタンス対応</div>
+        <p class="feature-desc">1ページ内に複数のシーンを独立して配置できます。それぞれ異なるカメラ設定で動作します。</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined">extension</span>
+        <div class="feature-title">GSAP / MotionLab 連携</div>
+        <p class="feature-desc">GSAPのScrollTriggerやMotionLabのZ軸アニメーションと組み合わせることで、インタラクティブな奥行き表現が可能です。</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined">bolt</span>
+        <div class="feature-title">ゼロ依存・軽量</div>
+        <p class="feature-desc">外部ライブラリへの依存なし。CDN / npm / ESM のすべての形式で配布しています。MITライセンスで商用利用可能。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════
+       3. Integration
+  ══════════════════════════ -->
+  <div class="divider"></div>
+  <section id="integration">
+    <p class="section-label">Integration</p>
+    <h2 class="section-title">GSAPとMotionLabで<br>さらに広がる表現</h2>
+    <p class="section-desc">DepthFieldは単体でも使えますが、GSAPやMotionLabと組み合わせることで、インタラクティブな奥行き表現が可能になります。</p>
+
+    <div class="integration-grid">
+
+      <!-- GSAP ScrollTrigger -->
+      <div class="integration-card">
+        <div class="integration-card-header">
+          <span class="material-symbols-outlined">swipe_down</span>
+          <div class="integration-card-title">GSAP ScrollTrigger</div>
+        </div>
+        <p class="integration-card-desc">スクロール量に連動してフォーカスポイントを移動させます。<code>watch: true</code> と ScrollTrigger の <code>scrub</code> を組み合わせるだけで、このページのヒーローデモのような表現が実現できます。</p>
+        <div class="integration-code">
+<span class="c-comment">// スクロールでフォーカスが奥から手前へ移動</span><br>
+<span class="c-key">const</span> df = DepthField.<span class="c-key">scene</span>(<span class="c-str">'main'</span>, <span class="c-str">'#stage'</span>, {<br>
+&nbsp;&nbsp;<span class="c-key">focalLength</span>: <span class="c-num">35</span>, <span class="c-key">aperture</span>: <span class="c-num">16</span>, <span class="c-key">watch</span>: <span class="c-bool">true</span><br>
+});<br>
+gsap.<span class="c-key">to</span>(proxy, {<br>
+&nbsp;&nbsp;<span class="c-key">z</span>: <span class="c-num">20</span>,<br>
+&nbsp;&nbsp;<span class="c-key">scrollTrigger</span>: { <span class="c-key">scrub</span>: <span class="c-bool">true</span> },<br>
+&nbsp;&nbsp;<span class="c-key">onUpdate</span>: () => df.<span class="c-key">focus</span>(proxy.z)<br>
+});
+        </div>
+        <a href="https://gsap.com/docs/v3/Plugins/ScrollTrigger/" target="_blank" class="btn-motionlab" style="background: linear-gradient(135deg, #88ce02, #4a9eff); margin-top: auto;">
+          <span class="material-symbols-outlined" style="font-size:16px; margin-bottom:0; color:#fff;">open_in_new</span>
+          GSAP ScrollTrigger を見る
+        </a>
+      </div>
+
+      <!-- MotionLab -->
+      <div class="integration-card highlight">
+        <div class="integration-card-header">
+          <span class="material-symbols-outlined" style="color:#a855f7">movie_filter</span>
+          <div class="integration-card-title">MotionLab</div>
+        </div>
+        <p class="integration-card-desc">GSAPアニメーションをGUIで設計できるツール「MotionLab」は、Z軸アニメーションがDepthFieldと直接連動します。1行のscriptタグを追加するだけで、既存のページ上でGSAPアニメーションをリアルタイムにシミュレーションできます。</p>
+        <div class="integration-code">
+<span class="c-comment">&lt;!-- 既存ページに1行追加するだけ --&gt;</span><br>
+&lt;<span class="c-key">script</span><br>
+&nbsp;&nbsp;<span class="c-str">src</span>=<span class="c-str">"motionlab-simulator.min.js"</span><br>
+&nbsp;&nbsp;<span class="c-str">data-ml-mode</span>=<span class="c-str">"editor"</span><br>
+&gt;&lt;/<span class="c-key">script</span>&gt;<br><br>
+<span class="c-comment">// Z軸を動かすとDepthFieldが自動追従</span><br>
+<span class="c-comment">// ブラー・スケール・透明度がリアルタイムで変化</span>
+        </div>
+        <a href="https://www.idstock.net/motionlab/" target="_blank" class="btn-motionlab" style="margin-top: auto;">
+          <span class="material-symbols-outlined" style="font-size:16px; margin-bottom:0; color:#fff;">open_in_new</span>
+          MotionLab を見る
+        </a>
+      </div>
+
+    </div>
+
+    <!-- フロー図 -->
+    <div class="integration-flow">
+      <div class="flow-step">
+        <div class="flow-step-label">Design</div>
+        <div class="flow-step-name"><span>MotionLab</span></div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-label">Z-axis animation</div>
+        <div class="flow-step-name">data-z</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-label">Depth of Field</div>
+        <div class="flow-step-name"><span>DepthField</span>.js</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-label">Result</div>
+        <div class="flow-step-name">🎬 Cinematic</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════
+       4. インタラクティブデモ
+  ══════════════════════════ -->
+  <div class="divider"></div>
+  <div class="demo-section" id="demo">
+    <p class="section-label">Interactive Demo</p>
+    <h2 class="section-title" style="margin-bottom:12px">パラメータを動かして試す</h2>
+    <p class="section-desc" style="margin-bottom:40px">センサー・焦点距離・絞りをスライダーで調整。要素をクリックするとフォーカスが移動します。</p>
+
+    <!-- Instance 1 -->
+    <div class="df-instance" id="inst-1">
+      <div class="df-ctrl">
+        <div class="df-instance-name"><span style="background:#007aff;"></span> Instance 1 — カード列</div>
+        <div class="ctrl-group">
+          <label>センサー</label>
+          <select class="sensor-select" id="i1-sensor">
+            <optgroup label="大判"><option value="lf810">大判 8×10 (0.13x)</option><option value="lf45">大判 4×5 (0.28x)</option></optgroup>
+            <optgroup label="中判"><option value="mf67">中判 6×7 (0.48x)</option><option value="mf66">中判 6×6 (0.55x)</option><option value="mf645">中判 645 (0.62x)</option></optgroup>
+            <optgroup label="35mm判"><option value="fullframe" selected>フルサイズ 35mm (1.0x)</option></optgroup>
+            <optgroup label="デジタル"><option value="apsc">APS-C (1.5x)</option><option value="mft">マイクロフォーサーズ (2x)</option><option value="inch1">1インチ (2.7x)</option><option value="smartphone">スマートフォン (5.4x)</option></optgroup>
+          </select>
+        </div>
+        <div class="ctrl-group"><label>焦点距離 <span class="ctrl-val" id="i1-val-focal">85</span>mm</label><input type="range" id="i1-focal" min="24" max="200" value="85" step="1"></div>
+        <div class="ctrl-group"><label>絞り F<span class="ctrl-val" id="i1-val-aperture">1.8</span></label><input type="range" id="i1-aperture" min="1.0" max="16" value="1.8" step="0.1"></div>
+        <div class="ctrl-group"><label>フォーカス z:<span class="ctrl-val" id="i1-val-focus">0</span></label><input type="range" id="i1-focus" min="-4" max="4" value="0" step="1"></div>
+        <div class="sensor-info" id="i1-sensor-info"><span>maxBlur: <b id="i1-info-blur">14</b>px</span><span>depthScale: <b id="i1-info-depth">0.015</b></span></div>
+      </div>
+      <div class="df-scene-area" id="scene-1">
+        <div class="card" data-z="-4" style="background:#141a14;"><span class="z-badge">z:-4</span><span class="emoji">🏔️</span><h3>遠景</h3><p>最も奥の要素</p></div>
+        <div class="card" data-z="-2" style="background:#161a16;"><span class="z-badge">z:-2</span><span class="emoji">🌲</span><h3>背景</h3><p>奥の要素</p></div>
+        <div class="card focused" data-z="0" style="background:#1a1a1a;"><span class="z-badge">z:0</span><span class="emoji">📷</span><h3>ピント面</h3><p>フォーカス基準</p></div>
+        <div class="card" data-z="2" style="background:#1a1614;"><span class="z-badge">z:2</span><span class="emoji">🌸</span><h3>前景</h3><p>手前の要素</p></div>
+        <div class="card" data-z="4" style="background:#1a1416;"><span class="z-badge">z:4</span><span class="emoji">🦋</span><h3>最前景</h3><p>最も手前の要素</p></div>
+      </div>
+    </div>
+
+    <!-- Instance 2 -->
+    <div class="df-instance" id="inst-2">
+      <div class="df-ctrl">
+        <div class="df-instance-name"><span style="background:#34c759;"></span> Instance 2 — グループ（写真とラベルが連動）</div>
+        <div class="ctrl-group">
+          <label>センサー</label>
+          <select class="sensor-select" id="i2-sensor">
+            <optgroup label="大判"><option value="lf810">大判 8×10 (0.13x)</option><option value="lf45">大判 4×5 (0.28x)</option></optgroup>
+            <optgroup label="中判"><option value="mf67">中判 6×7 (0.48x)</option><option value="mf66">中判 6×6 (0.55x)</option><option value="mf645">中判 645 (0.62x)</option></optgroup>
+            <optgroup label="35mm判"><option value="fullframe" selected>フルサイズ 35mm (1.0x)</option></optgroup>
+            <optgroup label="デジタル"><option value="apsc">APS-C (1.5x)</option><option value="mft">マイクロフォーサーズ (2x)</option><option value="inch1">1インチ (2.7x)</option><option value="smartphone">スマートフォン (5.4x)</option></optgroup>
+          </select>
+        </div>
+        <div class="ctrl-group"><label>焦点距離 <span class="ctrl-val" id="i2-val-focal">135</span>mm</label><input type="range" id="i2-focal" min="24" max="200" value="135" step="1"></div>
+        <div class="ctrl-group"><label>絞り F<span class="ctrl-val" id="i2-val-aperture">2.0</span></label><input type="range" id="i2-aperture" min="1.0" max="16" value="2.0" step="0.1"></div>
+        <div class="ctrl-group"><label>フォーカス z:<span class="ctrl-val" id="i2-val-focus">0</span></label><input type="range" id="i2-focus" min="-3" max="3" value="0" step="1"></div>
+        <div class="sensor-info" id="i2-sensor-info"><span>maxBlur: <b id="i2-info-blur">14</b>px</span><span>depthScale: <b id="i2-info-depth">0.015</b></span></div>
+      </div>
+      <div class="df-scene-area" id="scene-2" style="gap:24px;">
+        <div class="photo-wrap"><div class="photo-card" data-z="-3" data-df-group="g2-a"><div class="photo-bg" style="background:#1a2520;">🌄</div></div><div class="photo-label" data-z="-3" data-df-group="g2-a">夜明け</div></div>
+        <div class="photo-wrap"><div class="photo-card" data-z="-1" data-df-group="g2-b"><div class="photo-bg" style="background:#1a1a25;">🌊</div></div><div class="photo-label" data-z="-1" data-df-group="g2-b">静かな海</div></div>
+        <div class="photo-wrap"><div class="photo-card focused" data-z="0" data-df-group="g2-c"><div class="photo-bg" style="background:#25201a;">🌸</div></div><div class="photo-label" data-z="0" data-df-group="g2-c">春の花</div></div>
+        <div class="photo-wrap"><div class="photo-card" data-z="2" data-df-group="g2-d"><div class="photo-bg" style="background:#25251a;">🦋</div></div><div class="photo-label" data-z="2" data-df-group="g2-d">蝶の飛翔</div></div>
+        <div class="photo-wrap"><div class="photo-card" data-z="3" data-df-group="g2-e"><div class="photo-bg" style="background:#1a2025;">❄️</div></div><div class="photo-label" data-z="3" data-df-group="g2-e">冬の朝</div></div>
+      </div>
+    </div>
+
+    <!-- Instance 3 -->
+    <div class="df-instance" id="inst-3">
+      <div class="df-ctrl">
+        <div class="df-instance-name"><span style="background:#ff9500;"></span> Instance 3 — ページレイアウト</div>
+        <div class="ctrl-group">
+          <label>センサー</label>
+          <select class="sensor-select" id="i3-sensor">
+            <optgroup label="大判"><option value="lf810">大判 8×10 (0.13x)</option><option value="lf45">大判 4×5 (0.28x)</option></optgroup>
+            <optgroup label="中判"><option value="mf67">中判 6×7 (0.48x)</option><option value="mf66">中判 6×6 (0.55x)</option><option value="mf645">中判 645 (0.62x)</option></optgroup>
+            <optgroup label="35mm判"><option value="fullframe" selected>フルサイズ 35mm (1.0x)</option></optgroup>
+            <optgroup label="デジタル"><option value="apsc">APS-C (1.5x)</option><option value="mft">マイクロフォーサーズ (2x)</option><option value="inch1">1インチ (2.7x)</option><option value="smartphone">スマートフォン (5.4x)</option></optgroup>
+          </select>
+        </div>
+        <div class="ctrl-group"><label>焦点距離 <span class="ctrl-val" id="i3-val-focal">50</span>mm</label><input type="range" id="i3-focal" min="24" max="200" value="50" step="1"></div>
+        <div class="ctrl-group"><label>絞り F<span class="ctrl-val" id="i3-val-aperture">4.0</span></label><input type="range" id="i3-aperture" min="1.0" max="16" value="4.0" step="0.1"></div>
+        <div class="ctrl-group"><label>フォーカス z:<span class="ctrl-val" id="i3-val-focus">0</span></label><input type="range" id="i3-focus" min="-2" max="2" value="0" step="1"></div>
+        <div class="sensor-info" id="i3-sensor-info"><span>maxBlur: <b id="i3-info-blur">14</b>px</span><span>depthScale: <b id="i3-info-depth">0.015</b></span></div>
+      </div>
+      <div class="df-scene-area" id="scene-3">
+        <div class="layout-scene">
+          <div class="layout-hero focused" data-z="0"><span class="z-badge">z:0</span><h2>🎯 メインコンテンツ</h2><p>ここがフォーカスの中心。最も鮮明に表示される。</p></div>
+          <div class="layout-row">
+            <div class="layout-card" data-z="-2"><span class="z-badge">z:-2</span><h3>🔮 背景情報</h3><p>補足的なコンテンツ。</p></div>
+            <div class="layout-card" data-z="-2"><span class="z-badge">z:-2</span><h3>📊 データ</h3><p>補助的な情報。</p></div>
+            <div class="layout-card" data-z="-2"><span class="z-badge">z:-2</span><h3>📝 メモ</h3><p>参考情報。</p></div>
+          </div>
+          <div class="layout-row">
+            <div class="layout-card" data-z="2"><span class="z-badge">z:2</span><h3>⚡ CTA</h3><p>手前に出て目立つ要素。</p></div>
+            <div class="layout-card" data-z="2"><span class="z-badge">z:2</span><h3>🔔 通知</h3><p>重要な告知。</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       4. インストール
+  ══════════════════════════ -->
+  <div class="divider"></div>
+  <section id="install">
+    <p class="section-label">Installation</p>
+    <h2 class="section-title">3つの導入方法</h2>
+
+    <div class="install-box">
+      <div class="install-tabs">
+        <button class="tab-btn active" data-tab="cdn">CDN</button>
+        <button class="tab-btn" data-tab="npm">npm</button>
+        <button class="tab-btn" data-tab="esm">ESM</button>
+        <button class="tab-btn" data-tab="scroll">ScrollTrigger 連携</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-cdn">
+        <div class="code-block">
+<span class="c-comment">&lt;!-- jsDelivr CDN --&gt;</span><br>
+<span class="c-tag">&lt;script</span> <span class="c-attr">src</span>=<span class="c-str">"https://cdn.jsdelivr.net/npm/depthfield/depthfield.min.js"</span><span class="c-tag">&gt;&lt;/script&gt;</span><br><br>
+<span class="c-tag">&lt;script&gt;</span><br>
+<span class="c-key">const</span> df = DepthField.<span class="c-key">scene</span>(<span class="c-str">'main'</span>, <span class="c-str">'#container'</span>, {<br>
+&nbsp;&nbsp;<span class="c-key">sensor</span>     : <span class="c-str">'fullframe'</span>,<br>
+&nbsp;&nbsp;<span class="c-key">focalLength</span>: <span class="c-num">85</span>,<br>
+&nbsp;&nbsp;<span class="c-key">aperture</span>   : <span class="c-num">1.8</span>,<br>
+&nbsp;&nbsp;<span class="c-key">focusPoint</span> : <span class="c-num">0</span><br>
+});<br>
+df.<span class="c-key">apply</span>();<br>
+<span class="c-tag">&lt;/script&gt;</span>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-npm">
+        <div class="code-block">
+<span class="c-comment"># npm</span><br>
+npm install depthfield<br><br>
+<span class="c-comment"># yarn</span><br>
+yarn add depthfield
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-esm">
+        <div class="code-block">
+<span class="c-key">import</span> DepthField <span class="c-key">from</span> <span class="c-str">'depthfield'</span>;<br><br>
+<span class="c-key">const</span> df = DepthField.<span class="c-key">scene</span>(<span class="c-str">'main'</span>, <span class="c-str">'#container'</span>, {<br>
+&nbsp;&nbsp;<span class="c-key">sensor</span>     : <span class="c-str">'fullframe'</span>,<br>
+&nbsp;&nbsp;<span class="c-key">focalLength</span>: <span class="c-num">85</span>,<br>
+&nbsp;&nbsp;<span class="c-key">aperture</span>   : <span class="c-num">1.8</span>,<br>
+});<br>
+df.<span class="c-key">apply</span>();
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-scroll">
+        <div class="code-block">
+<span class="c-comment">// GSAP ScrollTrigger と組み合わせる</span><br>
+<span class="c-key">const</span> df = DepthField.<span class="c-key">scene</span>(<span class="c-str">'main'</span>, <span class="c-str">'#container'</span>, {<br>
+&nbsp;&nbsp;<span class="c-key">focalLength</span>: <span class="c-num">35</span>,<br>
+&nbsp;&nbsp;<span class="c-key">aperture</span>   : <span class="c-num">16</span>,<br>
+&nbsp;&nbsp;<span class="c-key">watch</span>      : <span class="c-bool">true</span>  <span class="c-comment">// data-z 変化を自動検知</span><br>
+});<br><br>
+<span class="c-key">const</span> proxy = { z: <span class="c-num">-20</span> };<br>
+gsap.<span class="c-key">to</span>(proxy, {<br>
+&nbsp;&nbsp;<span class="c-key">z</span>: <span class="c-num">20</span>, <span class="c-key">ease</span>: <span class="c-str">'none'</span>,<br>
+&nbsp;&nbsp;<span class="c-key">scrollTrigger</span>: { <span class="c-key">scrub</span>: <span class="c-bool">true</span> },<br>
+&nbsp;&nbsp;<span class="c-key">onUpdate</span>: () => df.<span class="c-key">focus</span>(proxy.z)<br>
+});
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════
+       5. API
+  ══════════════════════════ -->
+  <div class="divider"></div>
+  <section id="api">
+    <p class="section-label">API Reference</p>
+    <h2 class="section-title">オプション一覧</h2>
+    <table class="api-table">
+      <thead>
+        <tr>
+          <th>オプション</th>
+          <th>型</th>
+          <th>デフォルト</th>
+          <th>説明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>sensor</code></td><td class="type">string</td><td><code>'fullframe'</code></td><td class="desc">センサーサイズプリセット。<code>fullframe</code> / <code>apsc</code> / <code>mft</code> / <code>smartphone</code> など10種類。</td></tr>
+        <tr><td><code>focalLength</code></td><td class="type">number</td><td><code>50</code></td><td class="desc">焦点距離（mm）。値が大きいほど被写界深度が浅くなります。</td></tr>
+        <tr><td><code>aperture</code></td><td class="type">number</td><td><code>1.8</code></td><td class="desc">絞り値（F値）。小さいほど背景がよくボケます。</td></tr>
+        <tr><td><code>focusPoint</code></td><td class="type">number</td><td><code>0</code></td><td class="desc">ピントを合わせるz-index値。この値に最も近い要素が鮮明になります。</td></tr>
+        <tr><td><code>depthScale</code></td><td class="type">number</td><td>センサー依存</td><td class="desc">奥行きのスケール係数。大きいほど遠近感が強くなります。</td></tr>
+        <tr><td><code>maxBlur</code></td><td class="type">number</td><td>センサー依存</td><td class="desc">ぼかしの最大値（px）。</td></tr>
+        <tr><td><code>transition</code></td><td class="type">number</td><td><code>0</code></td><td class="desc">CSS transitionの秒数。smooth: 0.3 などで滑らかさを追加できます。</td></tr>
+        <tr><td><code>watch</code></td><td class="type">boolean</td><td><code>false</code></td><td class="desc"><code>true</code> にするとdata-z属性の変化をMutationObserverで自動監視します。GSAP連携時に便利。</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:48px; margin-bottom:16px; font-size:18px;">メソッド</h3>
+    <table class="api-table">
+      <thead>
+        <tr><th>メソッド</th><th>説明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>df.apply()</code></td><td class="desc">現在の設定でエフェクトを適用します。</td></tr>
+        <tr><td><code>df.focus(z, duration)</code></td><td class="desc">フォーカスポイントをアニメーションで移動します。<code>duration</code>はms単位（省略時は即時）。</td></tr>
+        <tr><td><code>df.update(options)</code></td><td class="desc">オプションを変更して再適用します。</td></tr>
+        <tr><td><code>df.reset()</code></td><td class="desc">エフェクトをリセットします。</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:48px; margin-bottom:16px; font-size:18px;">HTML 属性</h3>
+    <table class="api-table">
+      <thead>
+        <tr><th>属性</th><th>説明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>data-z="0"</code></td><td class="desc">要素のZ位置を指定します。focusPointからの距離でブラー・スケール・透明度が決まります。</td></tr>
+        <tr><td><code>data-df-group="id"</code></td><td class="desc">同じidを持つ要素をグループ化し、同じエフェクトを適用します。写真とキャプションの連動などに使います。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════
+       6. GitHub / npm
+  ══════════════════════════ -->
+  <div class="divider"></div>
+  <section id="links">
+    <p class="section-label">Resources</p>
+    <h2 class="section-title">リンク</h2>
+    <div class="link-cards">
+      <a href="https://github.com/ideasource-gm/depthfield" target="_blank" class="link-card">
+        <span class="material-symbols-outlined">code</span>
+        <div class="link-card-title">GitHub</div>
+        <p class="link-card-desc">ソースコード・Issue・Pull Requestはこちら。MITライセンスでオープンソース公開しています。</p>
+        <span class="link-card-url">github.com/ideasource-gm/depthfield</span>
+      </a>
+      <a href="https://www.npmjs.com/package/depthfield" target="_blank" class="link-card">
+        <span class="material-symbols-outlined">inventory_2</span>
+        <div class="link-card-title">npm</div>
+        <p class="link-card-desc">npmパッケージとして公開しています。CDN・ESM・CJS の全形式に対応。</p>
+        <span class="link-card-url">npmjs.com/package/depthfield</span>
+      </a>
+      <a href="https://cdn.jsdelivr.net/npm/depthfield/depthfield.min.js" target="_blank" class="link-card">
+        <span class="material-symbols-outlined">cloud</span>
+        <div class="link-card-title">jsDelivr CDN</div>
+        <p class="link-card-desc">スクリプトタグ1行で即導入。npmと同期して常に最新版が配信されます。</p>
+        <span class="link-card-url">cdn.jsdelivr.net/npm/depthfield</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- フッター -->
+  <footer>
+    <div>📷 <strong>DepthField.js</strong> v1.3.0 — MIT License</div>
+    <div>Built by <a href="https://github.com/ideasource-gm" target="_blank">ideasource</a> &nbsp;·&nbsp; <a href="https://github.com/ideasource-gm/depthfield" target="_blank">GitHub</a> &nbsp;·&nbsp; <a href="https://www.npmjs.com/package/depthfield" target="_blank">npm</a></div>
+  </footer>
+
+  <!-- GSAP + ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <!-- DepthField -->
+  <script src="./depthfield.min.js"></script>
+
+  <script>
+    gsap.registerPlugin(ScrollTrigger);
+
+    // ══════════════════════════════════════
+    // スクロールデモ
+    // ══════════════════════════════════════
+    const dfScroll = DepthField.scene('scroll', document.getElementById('df-stage'), {
+      sensor     : 'fullframe',
+      focalLength: 35,
+      aperture   : 16,
+      focusPoint : -20,
+      watch      : true
+    });
+
+    const scrollCards = document.querySelectorAll('.scroll-card');
+    const focusValEl  = document.getElementById('focus-val');
+    const progressEl  = document.getElementById('progress');
+
+    function updateFocusedCard(z) {
+      let closest = null, minDist = Infinity;
+      scrollCards.forEach(card => {
+        const dist = Math.abs(parseFloat(card.dataset.z) - z);
+        if (dist < minDist) { minDist = dist; closest = card; }
+      });
+      scrollCards.forEach(c => c.classList.remove('is-focused'));
+      if (closest) closest.classList.add('is-focused');
+    }
+
+    dfScroll.focus(-20);
+    updateFocusedCard(-20);
+
+    const proxy = { z: -20 };
+    gsap.to(proxy, {
+      z: 20, ease: 'none',
+      scrollTrigger: {
+        trigger: '.scroll-scene',
+        start  : 'top top',
+        end    : 'bottom bottom',
+        scrub  : 1,
+        onUpdate: self => { progressEl.style.width = (self.progress * 100) + '%'; }
+      },
+      onUpdate: function() {
+        const z = Math.round(proxy.z * 10) / 10;
+        dfScroll.focus(z);
+        focusValEl.textContent = 'z = ' + (z >= 0 ? '+' : '') + z.toFixed(1);
+        updateFocusedCard(z);
+      }
+    });
+
+    // ══════════════════════════════════════
+    // インタラクティブデモ
+    // ══════════════════════════════════════
+    const scene1 = DepthField.scene('s1', '#scene-1', { focalLength:85,  aperture:1.8, focusPoint:0, depthScale:0.018 });
+    const scene2 = DepthField.scene('s2', '#scene-2', { focalLength:135, aperture:2.0, focusPoint:0, depthScale:0.018 });
+    const scene3 = DepthField.scene('s3', '#scene-3', { focalLength:50,  aperture:4.0, focusPoint:0, depthScale:0.020 });
+    scene1.apply(); scene2.apply(); scene3.apply();
+
+    function bindControls(prefix, scene, focusMin, focusMax) {
+      const focalEl    = document.getElementById(prefix + '-focal');
+      const apertureEl = document.getElementById(prefix + '-aperture');
+      const focusEl    = document.getElementById(prefix + '-focus');
+      const sensorEl   = document.getElementById(prefix + '-sensor');
+      const vFocal     = document.getElementById(prefix + '-val-focal');
+      const vAperture  = document.getElementById(prefix + '-val-aperture');
+      const vFocus     = document.getElementById(prefix + '-val-focus');
+      const infoBlur   = document.getElementById(prefix + '-info-blur');
+      const infoDepth  = document.getElementById(prefix + '-info-depth');
+
+      function updateSensorInfo(sensor) {
+        const preset = DepthField.SENSORS[sensor];
+        if (!preset) return;
+        infoBlur.textContent  = preset.maxBlur;
+        infoDepth.textContent = preset.depthScale;
+      }
+
+      function update() {
+        const focal    = parseFloat(focalEl.value);
+        const aperture = parseFloat(apertureEl.value);
+        const focus    = parseFloat(focusEl.value);
+        const sensor   = sensorEl ? sensorEl.value : 'fullframe';
+        vFocal.textContent    = focal;
+        vAperture.textContent = aperture.toFixed(1);
+        vFocus.textContent    = focus;
+        const preset = DepthField.SENSORS[sensor];
+        scene.update({ sensor, focalLength: focal, aperture, focusPoint: focus, depthScale: preset.depthScale, maxBlur: preset.maxBlur });
+        updateSensorInfo(sensor);
+        updateFocused(scene._container, focus);
+      }
+
+      focalEl.addEventListener('input', update);
+      apertureEl.addEventListener('input', update);
+      focusEl.addEventListener('input', update);
+      if (sensorEl) sensorEl.addEventListener('change', update);
+      updateSensorInfo(sensorEl ? sensorEl.value : 'fullframe');
+
+      scene._container.querySelectorAll('[data-z]').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const z = parseFloat(el.dataset.z);
+          focusEl.value = Math.max(focusMin, Math.min(focusMax, z));
+          vFocus.textContent = z;
+          scene.focus(z, 600);
+          updateFocused(scene._container, z);
+        });
+      });
+    }
+
+    function updateFocused(container, focus) {
+      container.querySelectorAll('[data-z]').forEach(function(el) {
+        if (el.classList.contains('photo-card') || el.classList.contains('layout-hero') || el.classList.contains('layout-card') || el.classList.contains('card')) {
+          el.classList.toggle('focused', parseFloat(el.dataset.z) === focus);
+        }
+      });
+    }
+
+    bindControls('i1', scene1, -4, 4);
+    bindControls('i2', scene2, -3, 3);
+    bindControls('i3', scene3, -2, 2);
+    scene1.update({ watch: true });
+
+    // ══════════════════════════════════════
+    // タブ切り替え
+    // ══════════════════════════════════════
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const tab = this.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
