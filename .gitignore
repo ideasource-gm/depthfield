@@ -1,3 +1,6 @@
 node_modules/
 *.tgz
 PRODUCT.md
+CLAUDE.md
+demo-scroll.html
+lp.html

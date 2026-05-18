@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DepthField.js — CSS Depth of Field Library</title>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" rel="stylesheet">
+  <link rel="stylesheet" href="../navstow/navstow.css">
   <style>
     .material-symbols-outlined {
       font-size: 28px;
@@ -405,6 +406,47 @@
     footer a:hover { color: #fff; }
 
     /* ══════════════════════════════════════
+       テーブルスクロール
+    ══════════════════════════════════════ */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* ══════════════════════════════════════
+       NavStow カスタマイズ
+    ══════════════════════════════════════ */
+    .ns-button { width: 56px; height: 56px; background: transparent; }
+    .ns-button .ns-bar { background: #fff; }
+    .ns-menu {
+      background: rgba(8,12,16,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .ns-menu li a {
+      color: var(--text2); font-size: 15px;
+      outline: none;
+      transition: color 0.2s;
+    }
+    .ns-menu li a:hover { color: #fff; }
+    .ns-overlay { background: rgba(0,0,0,0.5); }
+
+    /* ══════════════════════════════════════
+       レスポンシブ
+    ══════════════════════════════════════ */
+    @media (max-width: 800px) {
+      nav { padding: 0 20px; }
+      .nav-btn { display: none; }
+      section { padding: 80px 24px; }
+      .demo-section { padding: 60px 24px; }
+      footer { padding: 48px 24px; }
+    }
+    @media (max-width: 480px) {
+      section { padding: 64px 16px; }
+      .demo-section { padding: 48px 16px; }
+      .hero-static { padding: 64px 16px 40px; }
+      footer { padding: 40px 16px; }
+      .df-ctrl { gap: 12px; }
+    }
+
+    /* ══════════════════════════════════════
        Integration セクション
     ══════════════════════════════════════ */
     .integration-grid {
@@ -467,15 +509,15 @@
 
   <!-- ナビ -->
   <nav>
-    <a href="#" class="nav-logo">📷 Depth<span>Field</span>.js</a>
-    <ul class="nav-links">
+    <a href="#" class="nav-logo">Depth<span>Field</span>.js</a>
+    <ul class="nav-links" id="df-nav">
       <li><a href="#demo">Demo</a></li>
       <li><a href="#integration">Integration</a></li>
       <li><a href="#install">Install</a></li>
       <li><a href="#api">API</a></li>
       <li><a href="#links">GitHub</a></li>
     </ul>
-    <a href="https://www.npmjs.com/package/depthfield" target="_blank" class="nav-btn">
+    <a href="https://www.npmjs.com/package/depthfield" target="_blank" class="nav-btn" id="df-npm">
       npm install
     </a>
   </nav>
@@ -847,6 +889,7 @@ gsap.<span class="c-key">to</span>(proxy, {<br>
   <section id="api">
     <p class="section-label">API Reference</p>
     <h2 class="section-title">オプション一覧</h2>
+    <div class="table-scroll">
     <table class="api-table">
       <thead>
         <tr>
@@ -867,8 +910,10 @@ gsap.<span class="c-key">to</span>(proxy, {<br>
         <tr><td><code>watch</code></td><td class="type">boolean</td><td><code>false</code></td><td class="desc"><code>true</code> にするとdata-z属性の変化をMutationObserverで自動監視します。GSAP連携時に便利。</td></tr>
       </tbody>
     </table>
+    </div>
 
     <h3 style="margin-top:48px; margin-bottom:16px; font-size:18px;">メソッド</h3>
+    <div class="table-scroll">
     <table class="api-table">
       <thead>
         <tr><th>メソッド</th><th>説明</th></tr>
@@ -880,8 +925,10 @@ gsap.<span class="c-key">to</span>(proxy, {<br>
         <tr><td><code>df.reset()</code></td><td class="desc">エフェクトをリセットします。</td></tr>
       </tbody>
     </table>
+    </div>
 
     <h3 style="margin-top:48px; margin-bottom:16px; font-size:18px;">HTML 属性</h3>
+    <div class="table-scroll">
     <table class="api-table">
       <thead>
         <tr><th>属性</th><th>説明</th></tr>
@@ -891,6 +938,7 @@ gsap.<span class="c-key">to</span>(proxy, {<br>
         <tr><td><code>data-df-group="id"</code></td><td class="desc">同じidを持つ要素をグループ化し、同じエフェクトを適用します。写真とキャプションの連動などに使います。</td></tr>
       </tbody>
     </table>
+    </div>
   </section>
 
   <!-- ══════════════════════════
@@ -924,9 +972,24 @@ gsap.<span class="c-key">to</span>(proxy, {<br>
 
   <!-- フッター -->
   <footer>
-    <div>📷 <strong>DepthField.js</strong> v1.3.0 — MIT License</div>
+    <div><strong>DepthField.js</strong> v1.3.0 — MIT License</div>
     <div>Built by <a href="https://github.com/ideasource-gm" target="_blank">ideasource</a> &nbsp;·&nbsp; <a href="https://github.com/ideasource-gm/depthfield" target="_blank">GitHub</a> &nbsp;·&nbsp; <a href="https://www.npmjs.com/package/depthfield" target="_blank">npm</a></div>
   </footer>
+
+  <!-- NavStow -->
+  <script src="../navstow/navstow.js"></script>
+  <script>
+    NavStow.init({
+      elements: [
+        { selector: '#df-nav', style: 'list-1col', autoHide: true },
+        { selector: '#df-npm', style: 'button',    autoHide: true },
+      ],
+      burger: 800,
+      button: { position: 'right top', animation: 'cross' },
+      animation: { type: 'slide', origin: 'top', easing: 'ease-in-out', duration: 280 },
+      overlay: true,
+    });
+  </script>
 
   <!-- GSAP + ScrollTrigger -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
